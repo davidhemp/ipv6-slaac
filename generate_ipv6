@@ -2,7 +2,7 @@
 import ipaddress
 import sys
 
-def get_slaac_ipv6_address(mac, subnet="fe80::"):
+def get_slaac_ipv6_address(mac: str, subnet: str) -> str:
     # Validate MAC address format
     try:
         _ = int(mac.replace(':', ''), 16)
