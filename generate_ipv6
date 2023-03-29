@@ -1,17 +1,36 @@
 #!/usr/bin/env python3
+import ipaddress
+import sys
 
-def convert_mac_to_eui(mac, prefix="fe80::"):
-                eui64 = mac.replace(":", "")
-                eui64 = eui64[0:6] + 'fffe' + eui64[6:]
-                eui64 = hex(int(eui64[0:2], 16) ^ 2)[2:].zfill(2) + eui64[2:]
-                return prefix + ":" + ':'.join(eui64[i:i + 4] for i in range(0, len(eui64), 4))
+def get_slaac_ipv6_address(mac, subnet="fe80::"):
+    # Validate MAC address format
+    try:
+        _ = int(mac.replace(':', ''), 16)
+    except ValueError:
+        raise ValueError('Invalid MAC address format')
 
-if __name__ == "__main__": 
-    #subnet for ESX VMs
-    #subnet="2a0c:5bc0:89:ae2"
-    #subnet for BMC
-    subnet="2a0c:5bc0:89:b01"
-    #subnet for rack
-    #subnet="2a0c:5bc0:89:a11"
-    mac="08:8f:c3:a2:6c:6c"
-    print(convert_mac_to_eui(mac, subnet))
+    # Validate IPv6 subnet format
+    try:
+        network = ipaddress.IPv6Network(subnet)
+    except ValueError:
+        raise ValueError('Invalid IPv6 subnet format')
+
+    prefix = network.network_address.exploded[:20]
+    eui64 = mac.replace(":", "")
+    eui64 = eui64[0:6] + 'fffe' + eui64[6:]
+    eui64 = hex(int(eui64[0:2], 16) ^ 2)[2:].zfill(2) + eui64[2:]
+    ipv6_address = prefix + ':'.join(eui64[i:i + 4] for i in range(0, len(eui64), 4))
+    return ipaddress.ip_address(ipv6_address).compressed
+
+if (len(sys.argv)) != 3:
+    print(f"Usage: {sys.argv[0]} <mac_address> <subnet>")
+    print(f"For example: {sys.argv[0]} 08:8f:c3:a2:6c:6c 2a0c:5bc0:89:b01::")
+    print("The OOB can be used as an alias for the OOB network")
+    raise SystemExit(2)
+
+if sys.argv[2] == "OOB":
+    subnet = "2a0c:5bc0:89:b01::"
+else:
+    subnet = sys.argv[2]
+mac = sys.argv[1]
+print(get_slaac_ipv6_address(mac, subnet))
